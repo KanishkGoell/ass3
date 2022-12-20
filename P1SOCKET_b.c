@@ -5,50 +5,65 @@
 #include<sys/un.h>
 #include<unistd.h>
 #include<time.h>
-struct sockaddr_un addr;
+
 #define SOCKET_NAME "CustomSocket"
+#define BUFFER_SIZE 10
 
-char ** generateRandomString();
 
-int main(int argc, char* argv[]){
-    char ** randStr = generateRandomString();
-    int data_socket;
-    char buffer[10];
-	socket(AF_UNIX, SOCK_SEQPACKET, 0) ;
-    memset(&addr, 0, sizeof(addr));
-    addr.sun_family = AF_UNIX;
-    strcpy(addr.sun_path, SOCKET_NAME);
-    connect(data_socket, (const struct sockaddr *) &addr, sizeof(addr)) ; 
+void getRandStr(char [][12]);
+int main(int argc, char* argv[]) {
+	struct sockaddr_un addr;
+	int ret;
+	int data_socket;
+	char buffer[BUFFER_SIZE];
 
-    
-    int k = 0, p = 1;
-    while(k<=50) {
-		while(p<12) {
-			if(p == 0) {
-				printf("%d ", randStr[k][p]);
+	//Creating data socket
+    socket(AF_UNIX, SOCK_SEQPACKET, 0);
+	memset(&addr, 0, sizeof(addr));
+
+	addr.sun_family = AF_UNIX;
+	strncpy(addr.sun_path, SOCKET_NAME, sizeof(addr.sun_path) - 1);
+	connect(data_socket, (const struct sockaddr *) &addr, sizeof(addr));
+
+	char randStr[51][12] = {{0}};
+	getRandStr(randStr);
+	
+	for(int i = 1; i <= 50; i++) {
+		for(int j = 0; j < 12; j++) {
+			if(j == 0) {
+				printf("%d ", randStr[i][j]);
 			}
-			else printf("%c", randStr[k][p]);
-            p++;
+			else printf("%c", randStr[i][j]);
 		}
-        k++;
 		printf("\n");
 	}
+
+	if(argc > 1) {
+		strncpy(buffer, "DOWN", sizeof("DOWN"));
+		write(data_socket, buffer, sizeof(buffer));
+		close(data_socket);
+		exit(EXIT_SUCCESS);
+	}
+	else {
 		int lastIdx = 1;
-		for(;;) {
+		while(1) {
 			printf("sending Strings Indexed from %d to %d\n", lastIdx, lastIdx + 4);
-            int i = lastIdx;
-			while( i < lastIdx + 5) {
-				write(data_socket, randStr[i], strlen(randStr[i]) + 1);
-                i++;
+			for(int i = lastIdx; i < lastIdx + 5; i++) {
+			    write(data_socket, randStr[i], strlen(randStr[i]) + 1);
+				
 			}
-			read(data_socket, buffer, sizeof(buffer)) ; 
+
+			//Reading Acknowledgements
+			read(data_socket, buffer, sizeof(buffer));
 
 			buffer[sizeof(buffer) - 1] = 0;
 			int finalIdx = atoi(buffer);
 			
-			printf("ID sent back: %s\n\n", buffer);
+			printf("MAX ID SENT BACK BY SERVER = %s\n\n", buffer);
 			if(finalIdx == 50) {
 				printf("Successfully sent all Strings\n");
+				strncpy(buffer, "DOWN", sizeof("DOWN"));
+				write(data_socket, buffer, sizeof(buffer));
 				close(data_socket);
 				exit(EXIT_SUCCESS);
 				break;
@@ -57,29 +72,17 @@ int main(int argc, char* argv[]){
 				lastIdx = finalIdx + 1;
 			}
 		}
+	}
 }
-
-char ** generateRandomString(){
-    char** str;
-    int i =0;
-    while(i<=50) {
-        int j = 1;
-		while(j<=10){
-			str[i][j] = 0;
-            j++;
-		}
-        i++;
-	}
-    i = 0 ;
+void getRandStr(char randstrs[][12]) {        
+    srand (time(NULL));                            
+    for (int j = 0; j <= 50; j++) {
+        randstrs[j][0] = j;
+    }
     
-    while(i<=50) {
-        int j = 1;
-		while(j<=10) {
-			str[i][j] = rand() % 26 + 65;
-            str[i][0] = i;
-            j++;
+    for(int i = 0; i <= 50; i++) {
+		for(int j = 1; j <= 10; j++) {
+			randstrs[i][j] = rand() % 26 + 65;
 		}
-        i++;
 	}
-    return str;
 }
